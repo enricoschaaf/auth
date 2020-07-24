@@ -1,3 +1,9 @@
 {
-  "regions": ["bru"]
+  "regions": ["bru"],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://2fgb2rrnz7.execute-api.eu-central-1.amazonaws.com/$1"
+    }
+  ]
 }

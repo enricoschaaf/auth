@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
-    "module": "commonjs",
-    "lib": ["es2018"],
+    "target": "ESNext",
+    "module": "CommonJS",
+    "lib": ["ESNext"],
     "declaration": true,
     "strict": true,
     "noImplicitAny": true,
@@ -19,5 +19,5 @@
     "strictPropertyInitialization": false,
     "typeRoots": ["./node_modules/@types"]
   },
-  "exclude": ["cdk.out"]
+  "exclude": ["cdk.out", "lambda"]
 }
