@@ -9,7 +9,11 @@ const signOutHandler: APIGatewayProxyHandlerV2 = async ({ cookies }) => {
     const refreshToken = cookies
       ?.find((cookie: string) => cookie.startsWith("refreshToken"))
       ?.split("=")[1]
-    if (!refreshToken) throw Error
+    if (!refreshToken) {
+      return {
+        statusCode: 401,
+      }
+    }
     await dynamo
       .delete({
         TableName: tableName,
@@ -24,7 +28,7 @@ const signOutHandler: APIGatewayProxyHandlerV2 = async ({ cookies }) => {
   } catch (err) {
     console.error(err)
     return {
-      statusCode: 400,
+      statusCode: 500,
     }
   }
 }

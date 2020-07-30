@@ -8,7 +8,11 @@ const dynamo = new DynamoDB.DocumentClient()
 
 const refreshHandler: APIGatewayProxyHandlerV2 = async ({ pathParameters }) => {
   try {
-    if (!pathParameters?.tokenId) throw Error
+    if (!pathParameters?.tokenId) {
+      return {
+        statusCode: 400,
+      }
+    }
     const { tokenId } = pathParameters
     const { Items } = await dynamo
       .query({
@@ -22,16 +26,24 @@ const refreshHandler: APIGatewayProxyHandlerV2 = async ({ pathParameters }) => {
         },
       })
       .promise()
-    if (!Items) throw Error
+    if (!Items) {
+      return {
+        statusCode: 400,
+      }
+    }
     const { refreshToken, confirmed, userId } = Items[0]
-    if (!confirmed) throw Error
+    if (!confirmed) {
+      return {
+        statusCode: 200,
+      }
+    }
     return {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
       },
       cookies: [
-        `refreshToken=${refreshToken}; Secure; HttpOnly; SameSite=Strict; Max-Age=2147483647; Path=/`,
+        `refreshToken=${refreshToken}; HttpOnly; SameSite=Strict; Max-Age=2147483647; Path=/`,
       ],
       body: JSON.stringify({
         accessToken: createAccessToken(userId, privatKey),
@@ -40,7 +52,7 @@ const refreshHandler: APIGatewayProxyHandlerV2 = async ({ pathParameters }) => {
   } catch (err) {
     console.error(err)
     return {
-      statusCode: 400,
+      statusCode: 500,
     }
   }
 }

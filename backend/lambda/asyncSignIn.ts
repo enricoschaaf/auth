@@ -4,114 +4,105 @@ import { nanoid } from "nanoid"
 
 const tableName = process.env.TABLE_NAME
 const dynamo = new DynamoDB.DocumentClient()
+
 const ses = new SES()
+
+async function getUserId(email: string) {
+  const { Items } = await dynamo
+    .query({
+      TableName: tableName,
+      IndexName: "GSI1",
+      ProjectionExpression: "userId",
+      KeyConditionExpression: "GSI1PK = :pk AND GSI1SK = :sk",
+      ExpressionAttributeValues: {
+        ":pk": "EMAIL#" + email,
+        ":sk": "PROFILE",
+      },
+    })
+    .promise()
+  if (Items.length > 0) {
+    const { userId } = Items[0]
+    return userId
+  }
+}
+
+function createUser(userId: string, email: string) {
+  return dynamo
+    .put({
+      TableName: tableName,
+      Item: {
+        PK: "USER#" + userId,
+        SK: "PROFILE",
+        GSI1PK: "EMAIL#" + email,
+        GSI1SK: "PROFILE",
+        type: "PROFILE",
+        userId,
+        email,
+      },
+    })
+    .promise()
+}
+
+function updateToken(refreshToken: string, userId: string) {
+  return dynamo
+    .update({
+      TableName: tableName,
+      Key: { PK: "TOKEN#" + refreshToken, SK: "TOKEN#" + refreshToken },
+      UpdateExpression: "SET userId = :userId",
+      ExpressionAttributeValues: { ":userId": userId },
+    })
+    .promise()
+}
+
+function sendEmail(email: string, confirm: string) {
+  return ses
+    .sendEmail({
+      Destination: {
+        ToAddresses: [email],
+      },
+      Message: {
+        Body: {
+          Html: {
+            Data: "auth.enricoschaaf.com/confirm/" + confirm,
+          },
+          Text: {
+            Data: "auth.enricoschaaf.com/confirm/" + confirm,
+          },
+        },
+        Subject: {
+          Data: "Sign in to Auth",
+        },
+      },
+      Source: "Enrico <noreply@enricoschaaf.com>",
+    })
+    .promise()
+}
 
 const asyncSignInHandler: Handler = async ({
   email,
-  tokenId,
+  refreshToken,
+  confirm,
 }: {
   email: string
-  tokenId: string
+  refreshToken: string
+  confirm: string
 }) => {
   try {
-    const confirm = nanoid()
-    const refreshToken = nanoid()
+    const userId = await getUserId(email)
 
-    const { Items } = await dynamo
-      .query({
-        TableName: tableName,
-        IndexName: "GSI1",
-        ProjectionExpression: "userId",
-        KeyConditionExpression: "GSI1PK = :pk AND GSI1SK = :sk",
-        ExpressionAttributeValues: {
-          ":pk": "EMAIL#" + email,
-          ":sk": "PROFILE",
-        },
-      })
-      .promise()
-
-    if (Items && Items.length > 0 && Items[0].userId) {
-      await dynamo
-        .put({
-          TableName: tableName,
-          Item: {
-            PK: "TOKEN#" + refreshToken,
-            SK: "TOKEN#" + refreshToken,
-            GSI1PK: "ID#" + tokenId,
-            GSI1SK: "CREATED_AT#" + Date.now(),
-            GSI2PK: "CONFIRM#" + confirm,
-            GSI2SK: "CREATED_AT#" + Date.now(),
-            type: "TOKEN",
-            expiresAt: Date.now() + 600,
-            refreshToken: refreshToken,
-            confirmed: false,
-            userId: Items[0].userId,
-          },
-        })
-        .promise()
+    if (userId) {
+      await Promise.all([
+        updateToken(refreshToken, userId),
+        sendEmail(email, confirm),
+      ])
     } else {
       const userId = nanoid()
-      await dynamo
-        .batchWrite({
-          RequestItems: {
-            [tableName]: [
-              {
-                PutRequest: {
-                  Item: {
-                    PK: "USER#" + userId,
-                    SK: "PROFILE",
-                    GSI1PK: "EMAIL#" + email,
-                    GSI1SK: "PROFILE",
-                    type: "PROFILE",
-                    userId,
-                    email,
-                  },
-                },
-              },
-              {
-                PutRequest: {
-                  Item: {
-                    PK: "TOKEN#" + refreshToken,
-                    SK: "TOKEN#" + refreshToken,
-                    GSI1PK: "ID#" + tokenId,
-                    GSI1SK: "CREATED_AT#" + Date.now(),
-                    GSI2PK: "CONFIRM#" + confirm,
-                    GSI2SK: "CREATED_AT#" + Date.now(),
-                    type: "TOKEN",
-                    expiresAt: Date.now() + 600,
-                    refreshToken,
-                    confirmed: false,
-                    userId,
-                  },
-                },
-              },
-            ],
-          },
-        })
-        .promise()
+      await Promise.all([
+        createUser(userId, email),
+        updateToken(refreshToken, userId),
+        sendEmail(email, confirm),
+      ])
     }
-
-    await ses
-      .sendEmail({
-        Destination: {
-          ToAddresses: [email],
-        },
-        Message: {
-          Body: {
-            Html: {
-              Data: "auth.enricoschaaf.com/confirm/" + confirm,
-            },
-            Text: {
-              Data: "auth.enricoschaaf.com/confirm/" + confirm,
-            },
-          },
-          Subject: {
-            Data: "Sign in to Auth",
-          },
-        },
-        Source: "Enrico <noreply@enricoschaaf.com>",
-      })
-      .promise()
   } catch (err) {
     console.error(err)
   }

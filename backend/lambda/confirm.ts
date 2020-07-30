@@ -6,9 +6,8 @@ const dynamo = new DynamoDB.DocumentClient()
 
 const confirmHandler: APIGatewayProxyHandlerV2 = async ({ body }) => {
   try {
-    if (!body) throw Error
     const { confirm } = JSON.parse(body)
-    if (typeof confirm !== "string") throw Error
+    if (typeof confirm !== "string") return { statusCode: 400 }
     const { Items } = await dynamo
       .query({
         TableName: tableName,
@@ -21,7 +20,7 @@ const confirmHandler: APIGatewayProxyHandlerV2 = async ({ body }) => {
         },
       })
       .promise()
-    if (!Items) throw Error
+    if (!Items) return { statusCode: 400 }
     const { PK, SK } = Items[0]
     await dynamo
       .update({
@@ -37,7 +36,7 @@ const confirmHandler: APIGatewayProxyHandlerV2 = async ({ body }) => {
   } catch (err) {
     console.error(err)
     return {
-      statusCode: 400,
+      statusCode: 500,
     }
   }
 }

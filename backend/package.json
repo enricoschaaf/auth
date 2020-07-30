@@ -10,11 +10,11 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.59",
     "@types/jsonwebtoken": "^8.5.0",
-    "@types/node": "10.17.5",
+    "@types/node": "14.0.26",
     "@types/source-map-support": "^0.5.2",
     "aws-cdk": "1.54.0",
-    "aws-sdk": "^2.717.0",
-    "typescript": "~3.7.2"
+    "aws-sdk": "^2.722.0",
+    "typescript": "~3.9.7"
   },
   "dependencies": {
     "@aws-cdk/aws-apigatewayv2": "^1.54.0",
@@ -22,9 +22,9 @@
     "@aws-cdk/aws-iam": "^1.54.0",
     "@aws-cdk/aws-lambda-nodejs": "^1.54.0",
     "@aws-cdk/core": "^1.54.0",
-    "jsonwebtoken": "^8.5.0",
-    "nanoid": "^3.1.10",
-    "source-map-support": "^0.5.16"
+    "jsonwebtoken": "^8.5.1",
+    "nanoid": "^3.1.11",
+    "source-map-support": "^0.5.19"
   },
   "cdk-lambda": "/asset-output/index.js",
   "targets": {

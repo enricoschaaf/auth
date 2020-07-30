@@ -7,6 +7,15 @@ module.exports = withPrefresh({
     modern: true,
     polyfillsOptimization: true
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination:
+          "https://2fgb2rrnz7.execute-api.eu-central-1.amazonaws.com/:path*"
+      }
+    ]
+  },
   webpack(config, { dev, isServer }) {
     const splitChunks = config.optimization && config.optimization.splitChunks
     if (splitChunks) {

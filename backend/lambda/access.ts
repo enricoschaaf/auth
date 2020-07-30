@@ -11,7 +11,7 @@ const accessHandler: APIGatewayProxyHandlerV2 = async ({ cookies }) => {
     const refreshToken = cookies
       ?.find((cookie: string) => cookie.startsWith("refreshToken"))
       ?.split("=")[1]
-    if (!refreshToken) throw Error
+    if (!refreshToken) return { statusCode: 401 }
     const { Item } = await dynamo
       .get({
         TableName: tableName,
@@ -20,14 +20,14 @@ const accessHandler: APIGatewayProxyHandlerV2 = async ({ cookies }) => {
       })
       .promise()
     const userId = Item?.userId
-    if (!userId) throw Error
+    if (!userId) return { statusCode: 401 }
     return {
       accessToken: createAccessToken(userId, privatKey),
     }
   } catch (err) {
     console.error(err)
     return {
-      statusCode: 400,
+      statusCode: 500,
     }
   }
 }

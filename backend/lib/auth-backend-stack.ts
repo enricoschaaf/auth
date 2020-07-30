@@ -60,7 +60,7 @@ export class AuthBackendStack extends cdk.Stack {
       asyncSignInLambda,
       "dynamodb:Query",
       "dynamodb:PutItem",
-      "dynamodb:BatchWriteItem",
+      "dynamodb:UpdateItem",
     )
     asyncSignInLambda.addToRolePolicy(
       new iam.PolicyStatement({ resources: ["*"], actions: ["ses:SendEmail"] }),
@@ -70,15 +70,19 @@ export class AuthBackendStack extends cdk.Stack {
       entry: "lambda/signIn.ts",
       environment: {
         FUNCTION_NAME: asyncSignInLambda.functionName,
+        TABLE_NAME: authTable.tableName,
       },
+      memorySize: 3008,
     })
     asyncSignInLambda.grantInvoke(signInLambda)
+    authTable.grant(signInLambda, "dynamodb:PutItem")
 
     const signOutLambda = new lambda.NodejsFunction(this, "signOutLambda", {
       entry: "lambda/signOut.ts",
       environment: {
         TABLE_NAME: authTable.tableName,
       },
+      memorySize: 3008,
     })
     authTable.grant(signOutLambda, "dynamodb:DeleteItem")
 
@@ -88,6 +92,7 @@ export class AuthBackendStack extends cdk.Stack {
         TABLE_NAME: authTable.tableName,
         PRIVAT_KEY: readFileSync("private.pem").toString(),
       },
+      memorySize: 3008,
     })
     authTable.grant(refreshLambda, "dynamodb:Query")
 
@@ -96,6 +101,7 @@ export class AuthBackendStack extends cdk.Stack {
       environment: {
         TABLE_NAME: authTable.tableName,
       },
+      memorySize: 3008,
     })
     authTable.grant(confirmLambda, "dynamodb:Query", "dynamodb:UpdateItem")
 
@@ -105,8 +111,68 @@ export class AuthBackendStack extends cdk.Stack {
         TABLE_NAME: authTable.tableName,
         PRIVAT_KEY: readFileSync("private.pem").toString(),
       },
+      memorySize: 3008,
     })
     authTable.grant(accessLambda, "dynamodb:GetItem")
+
+    const profileLambda = new lambda.NodejsFunction(this, "profileLambda", {
+      entry: "lambda/profile.ts",
+      environment: {
+        TABLE_NAME: authTable.tableName,
+        PUBLIC_KEY: readFileSync("public.pem").toString(),
+      },
+      memorySize: 3008,
+    })
+    authTable.grant(profileLambda, "dynamodb:GetItem")
+
+    const asyncChangeEmailLambda = new lambda.NodejsFunction(
+      this,
+      "asyncChangeEmailLambda",
+      {
+        entry: "lambda/asyncChangeEmail.ts",
+        environment: {
+          TABLE_NAME: authTable.tableName,
+        },
+      },
+    )
+    authTable.grant(asyncChangeEmailLambda, "dynamodb:PutItem")
+    asyncChangeEmailLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        resources: ["*"],
+        actions: ["ses:SendEmail"],
+      }),
+    )
+
+    const changeEmailLambda = new lambda.NodejsFunction(
+      this,
+      "changeEmailLambda",
+      {
+        entry: "lambda/changeEmail.ts",
+        environment: {
+          FUNCTION_NAME: asyncChangeEmailLambda.functionName,
+          TABLE_NAME: authTable.tableName,
+          PUBLIC_KEY: readFileSync("public.pem").toString(),
+        },
+      },
+    )
+    asyncChangeEmailLambda.grantInvoke(changeEmailLambda)
+    authTable.grant(changeEmailLambda, "dynamodb:Query")
+
+    const confirmNewEmailLambda = new lambda.NodejsFunction(
+      this,
+      "confirmNewEmailLambda",
+      {
+        entry: "lambda/confirmNewEmail.ts",
+        environment: {
+          TABLE_NAME: authTable.tableName,
+        },
+      },
+    )
+    authTable.grant(
+      confirmNewEmailLambda,
+      "dynamodb:Query",
+      "dynamodb:UpdateItem",
+    )
 
     const authApi = new apiGateway.HttpApi(this, "authApi")
 
@@ -147,6 +213,30 @@ export class AuthBackendStack extends cdk.Stack {
       methods: [apiGateway.HttpMethod.GET],
       integration: new apiGateway.LambdaProxyIntegration({
         handler: accessLambda,
+      }),
+    })
+
+    authApi.addRoutes({
+      path: "/profile",
+      methods: [apiGateway.HttpMethod.GET],
+      integration: new apiGateway.LambdaProxyIntegration({
+        handler: profileLambda,
+      }),
+    })
+
+    authApi.addRoutes({
+      path: "/email/change",
+      methods: [apiGateway.HttpMethod.POST],
+      integration: new apiGateway.LambdaProxyIntegration({
+        handler: changeEmailLambda,
+      }),
+    })
+
+    authApi.addRoutes({
+      path: "/email/confirm",
+      methods: [apiGateway.HttpMethod.POST],
+      integration: new apiGateway.LambdaProxyIntegration({
+        handler: confirmNewEmailLambda,
       }),
     })
   }
