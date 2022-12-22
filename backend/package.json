@@ -22,7 +22,7 @@
     "@aws-cdk/aws-iam": "^1.54.0",
     "@aws-cdk/aws-lambda-nodejs": "^1.54.0",
     "@aws-cdk/core": "^1.54.0",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "nanoid": "^3.1.11",
     "source-map-support": "^0.5.19"
   },
